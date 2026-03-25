@@ -1,0 +1,6 @@
+node_modules/
+blockchain/artifacts/
+blockchain/cache/
+__pycache__/
+Money-Muling/uploads/
+.gemini/

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% set active = "ledger" %}
+{% block title %}Blockchain Ledger — Money Muling{% endblock %}
+
+{% block extra_styles %}
+.ledger-grid { display: grid; gap: 16px; margin-top: 24px; }
+.ledger-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.ledger-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+.ledger-id { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--cyan); }
+.ledger-date { font-size: 11px; color: var(--text3); font-family: var(--mono); }
+.ledger-row { display: flex; gap: 12px; align-items: flex-start; }
+.ledger-lbl { width: 80px; font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.1em; flex-shrink: 0; }
+.ledger-val { font-family: var(--mono); font-size: 11px; color: var(--text1); word-break: break-all; }
+.ledger-score { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; font-family: var(--mono); font-weight: 700; font-size: 12px; border: 1px solid; }
+.ls-high { color: var(--red); background: var(--red-bg); border-color: var(--red-bd); }
+.ls-med { color: var(--amber); background: var(--amber-bg); border-color: var(--amber-bd); }
+.ls-low { color: var(--green); background: var(--green-bg); border-color: var(--green-bd); }
+{% endblock %}
+
+{% block content %}
+<div class="page-wrap">
+  <div class="page-header">
+    <div class="page-title"><span class="page-title-icon">⛓</span>Blockchain Ledger</div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--text2)">Total Records: <span id="l-total" style="color:var(--text1)">0</span></div>
+  </div>
+  
+  <div id="loading" style="text-align:center;padding:40px;color:var(--text3);font-family:var(--mono)">Loading ledger from chain...</div>
+  <div class="ledger-grid" id="ledger-grid"></div>
+</div>
+{% endblock %}
+
+{% block body_scripts %}
+<script>
+async function loadLedger() {
+  try {
+    const res = await fetch('/api/ledger');
+    const data = await res.json();
+    document.getElementById('loading').style.display = 'none';
+    
+    if(data.status !== 'ok') {
+      document.getElementById('ledger-grid').innerHTML = `<div style="color:var(--red)">Failed to load: ${data.message}</div>`;
+      return;
+    }
+    
+    document.getElementById('l-total').textContent = data.total;
+    
+    if(data.records.length === 0) {
+      document.getElementById('ledger-grid').innerHTML = '<div style="color:var(--text3);text-align:center;padding:40px;font-family:var(--mono)">The ledger is currently empty.</div>';
+      return;
+    }
+    
+    // Reverse to show newest first
+    const rows = data.records.reverse().map(r => {
+      const d = new Date(r.timestamp * 1000).toLocaleString();
+      const s = r.riskScore;
+      const lsClass = s >= 75 ? 'ls-high' : s >= 40 ? 'ls-med' : 'ls-low';
+      
+      const dataHash = r.dataHash.startsWith('0x') ? r.dataHash : '0x' + r.dataHash;
+      
+      return `
+        <div class="ledger-card">
+          <div class="ledger-top">
+            <span class="ledger-id">${r.ringId}</span>
+            <div style="display:flex;align-items:center;gap:12px">
+              <span class="ledger-date">${d}</span>
+              <div class="ledger-score ${lsClass}">${s}</div>
+            </div>
+          </div>
+          <div class="ledger-row">
+            <div class="ledger-lbl">Data Hash</div>
+            <div class="ledger-val" style="color:var(--purple)">${dataHash}</div>
+          </div>
+          <div class="ledger-row">
+            <div class="ledger-lbl">Submitter</div>
+            <div class="ledger-val">${r.submitter}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    
+    document.getElementById('ledger-grid').innerHTML = rows;
+    
+  } catch(err) {
+    document.getElementById('loading').innerHTML = '<span style="color:var(--red)">Error bridging to blockchain</span>';
+  }
+}
+loadLedger();
+</script>
+{% endblock %}
